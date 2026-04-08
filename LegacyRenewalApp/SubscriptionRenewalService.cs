@@ -1,6 +1,7 @@
 using System;
 using LegacyRenewalApp.Billing;
 using LegacyRenewalApp.Discounts;
+using LegacyRenewalApp.Pricing;
 using LegacyRenewalApp.Validation;
 
 namespace LegacyRenewalApp
@@ -12,13 +13,15 @@ namespace LegacyRenewalApp
         private readonly ILegacyBillingService _billingService;
         private readonly IRenewalRequestValidator _validator;
         private readonly IDiscountCalculator _discountCalculator;
+        private readonly ISupportFeeCalculator _supportFeeCalculator;
         
         public SubscriptionRenewalService()
             : this(new CustomerRepository(), 
                 new SubscriptionPlanRepository(),
                 new LegacyBillingService(),
                 new RenewalRequestValidator(),
-                new DiscountCalculator())
+                new DiscountCalculator(),
+                new SupportFeeCalculator())
         {
         }
 
@@ -27,13 +30,15 @@ namespace LegacyRenewalApp
             ISubscriptionPlanRepository planRepository,
             ILegacyBillingService billingService,
             IRenewalRequestValidator validator,
-            IDiscountCalculator discountCalculator)
+            IDiscountCalculator discountCalculator,
+            ISupportFeeCalculator supportFeeCalculator)
         {
             _customerRepository = customerRepository;
             _planRepository = planRepository;
             _billingService = billingService;
             _validator = validator;
             _discountCalculator = discountCalculator;
+            _supportFeeCalculator = supportFeeCalculator;
         }
         
         public RenewalInvoice CreateRenewalInvoice(
@@ -68,23 +73,13 @@ namespace LegacyRenewalApp
             decimal discountAmount = discountResult.DiscountAmount;
             decimal subtotalAfterDiscount = discountResult.SubtotalAfterDiscount;
             string notes = discountResult.Notes;
+            
+            decimal supportFee = _supportFeeCalculator.Calculate(
+                normalizedPlanCode,
+                includePremiumSupport);
 
-            decimal supportFee = 0m;
             if (includePremiumSupport)
             {
-                if (normalizedPlanCode == "START")
-                {
-                    supportFee = 250m;
-                }
-                else if (normalizedPlanCode == "PRO")
-                {
-                    supportFee = 400m;
-                }
-                else if (normalizedPlanCode == "ENTERPRISE")
-                {
-                    supportFee = 700m;
-                }
-
                 notes += "premium support included; ";
             }
 
