@@ -1,4 +1,5 @@
 using System;
+using LegacyRenewalApp.Billing;
 
 namespace LegacyRenewalApp
 {
@@ -6,18 +7,23 @@ namespace LegacyRenewalApp
     {
         private readonly ICustomerRepository _customerRepository;
         private readonly ISubscriptionPlanRepository _planRepository;
+        private readonly ILegacyBillingService _billingService;
         
         public SubscriptionRenewalService()
-            : this(new CustomerRepository(), new SubscriptionPlanRepository())
+            : this(new CustomerRepository(), 
+                new SubscriptionPlanRepository(),
+                new LegacyBillingService())
         {
         }
 
         public SubscriptionRenewalService(
             ICustomerRepository customerRepository,
-            ISubscriptionPlanRepository planRepository)
+            ISubscriptionPlanRepository planRepository,
+            ILegacyBillingService billingService)
         {
             _customerRepository = customerRepository;
             _planRepository = planRepository;
+            _billingService = billingService;
         }
         
         public RenewalInvoice CreateRenewalInvoice(
@@ -214,8 +220,8 @@ namespace LegacyRenewalApp
                 Notes = notes.Trim(),
                 GeneratedAt = DateTime.UtcNow
             };
-
-            LegacyBillingGateway.SaveInvoice(invoice);
+            
+            _billingService.SaveInvoice(invoice);
 
             if (!string.IsNullOrWhiteSpace(customer.Email))
             {
@@ -224,7 +230,7 @@ namespace LegacyRenewalApp
                     $"Hello {customer.FullName}, your renewal for plan {normalizedPlanCode} " +
                     $"has been prepared. Final amount: {invoice.FinalAmount:F2}.";
 
-                LegacyBillingGateway.SendEmail(customer.Email, subject, body);
+                _billingService.SendEmail(customer.Email, subject, body);
             }
 
             return invoice;
