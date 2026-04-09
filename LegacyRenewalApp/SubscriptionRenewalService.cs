@@ -15,6 +15,7 @@ namespace LegacyRenewalApp
         private readonly IDiscountCalculator _discountCalculator;
         private readonly ISupportFeeCalculator _supportFeeCalculator;
         private readonly IPaymentFeeCalculator _paymentFeeCalculator;
+        private readonly ITaxCalculator _taxCalculator;
         
         public SubscriptionRenewalService()
             : this(new CustomerRepository(), 
@@ -23,7 +24,8 @@ namespace LegacyRenewalApp
                 new RenewalRequestValidator(),
                 new DiscountCalculator(),
                 new SupportFeeCalculator(),
-                new PaymentFeeCalculator())
+                new PaymentFeeCalculator(),
+                new TaxCalculator())
         {
         }
 
@@ -34,7 +36,8 @@ namespace LegacyRenewalApp
             IRenewalRequestValidator validator,
             IDiscountCalculator discountCalculator,
             ISupportFeeCalculator supportFeeCalculator,
-            IPaymentFeeCalculator  paymentFeeCalculator)
+            IPaymentFeeCalculator  paymentFeeCalculator,
+            ITaxCalculator  taxCalculator)
         {
             _customerRepository = customerRepository;
             _planRepository = planRepository;
@@ -43,6 +46,7 @@ namespace LegacyRenewalApp
             _discountCalculator = discountCalculator;
             _supportFeeCalculator = supportFeeCalculator;
             _paymentFeeCalculator =  paymentFeeCalculator;
+            _taxCalculator = taxCalculator;
         }
         
         public RenewalInvoice CreateRenewalInvoice(
@@ -95,26 +99,12 @@ namespace LegacyRenewalApp
             decimal paymentFee = paymentFeeResult.PaymentFee;
             notes += paymentFeeResult.Notes;
 
-            decimal taxRate = 0.20m;
-            if (customer.Country == "Poland")
-            {
-                taxRate = 0.23m;
-            }
-            else if (customer.Country == "Germany")
-            {
-                taxRate = 0.19m;
-            }
-            else if (customer.Country == "Czech Republic")
-            {
-                taxRate = 0.21m;
-            }
-            else if (customer.Country == "Norway")
-            {
-                taxRate = 0.25m;
-            }
-
+            decimal taxAmount = _taxCalculator.Calculate(
+                customer.Country,
+                subtotalAfterDiscount,
+                supportFee,
+                paymentFee);
             decimal taxBase = subtotalAfterDiscount + supportFee + paymentFee;
-            decimal taxAmount = taxBase * taxRate;
             decimal finalAmount = taxBase + taxAmount;
 
             if (finalAmount < 500m)
